@@ -76,6 +76,9 @@ type ConformanceTestSuite struct {
 	UsableNetworkAddresses   []v1beta1.GatewayAddress
 	UnusableNetworkAddresses []v1beta1.GatewayAddress
 
+	// Failure hook point
+	FailureHooks []HookExecution
+
 	// mode is the operating mode of the implementation.
 	// The default value for it is "default".
 	mode string
@@ -117,6 +120,12 @@ type ConformanceTestSuite struct {
 
 	// lock is a mutex to help ensure thread safety of the test suite object.
 	lock sync.RWMutex
+}
+
+type HookExecution struct {
+	Name string
+	Path string
+	Args []string
 }
 
 // Options can be used to initialize a ConformanceTestSuite.
@@ -396,8 +405,10 @@ func (suite *ConformanceTestSuite) Run(t *testing.T, tests []ConformanceTest) er
 	// run all tests and collect the test results for conformance reporting
 	results := make(map[string]testResult)
 	for _, test := range tests {
+		var report string
+
 		succeeded := t.Run(test.ShortName, func(t *testing.T) {
-			test.Run(t, suite)
+			report = test.Run(t, suite)
 		})
 		res := testSucceeded
 		if suite.SkipTests.Has(test.ShortName) {
@@ -414,6 +425,7 @@ func (suite *ConformanceTestSuite) Run(t *testing.T, tests []ConformanceTest) er
 		results[test.ShortName] = testResult{
 			test:   test,
 			result: res,
+			report: report,
 		}
 	}
 

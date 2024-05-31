@@ -33,6 +33,8 @@ import (
 type testResult struct {
 	test   ConformanceTest
 	result resultType
+	// report by failure hook exec
+	report string
 }
 
 type resultType string
