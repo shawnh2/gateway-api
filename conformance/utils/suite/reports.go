@@ -31,11 +31,12 @@ import (
 // -----------------------------------------------------------------------------
 
 type testResult struct {
-	test   ConformanceTest
-	result resultType
-	// report by failure hook exec
-	report string
+	test              ConformanceTest
+	result            resultType
+	failureHookReport FailureHookResult
 }
+
+type FailureHookResult map[string][]byte
 
 type resultType string
 

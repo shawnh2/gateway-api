@@ -123,12 +123,13 @@ type ConformanceTestSuite struct {
 }
 
 type HookExecution struct {
+	// should be unique across all hooks
 	Name string
 	Path string
 	Args []string
 }
 
-// Options can be used to initialize a ConformanceTestSuite.
+// ConformanceOptions can be used to initialize a ConformanceTestSuite.
 type ConformanceOptions struct {
 	Client               client.Client
 	Clientset            clientset.Interface
@@ -405,7 +406,7 @@ func (suite *ConformanceTestSuite) Run(t *testing.T, tests []ConformanceTest) er
 	// run all tests and collect the test results for conformance reporting
 	results := make(map[string]testResult)
 	for _, test := range tests {
-		var report string
+		var report FailureHookResult
 
 		succeeded := t.Run(test.ShortName, func(t *testing.T) {
 			report = test.Run(t, suite)
@@ -423,9 +424,9 @@ func (suite *ConformanceTestSuite) Run(t *testing.T, tests []ConformanceTest) er
 		}
 
 		results[test.ShortName] = testResult{
-			test:   test,
-			result: res,
-			report: report,
+			test:              test,
+			result:            res,
+			failureHookReport: report,
 		}
 	}
 
@@ -455,6 +456,9 @@ func (suite *ConformanceTestSuite) Report() (*confv1.ConformanceReport, error) {
 	}
 	sort.Strings(testNames)
 	profileReports := newReports()
+
+	var reports []confv1.FailureHookReports
+
 	for _, tN := range testNames {
 		testResult := suite.results[tN]
 		conformanceProfiles := getConformanceProfilesForTest(testResult.test, suite.conformanceProfiles).UnsortedList()
@@ -464,6 +468,14 @@ func (suite *ConformanceTestSuite) Report() (*confv1.ConformanceReport, error) {
 		for _, profile := range conformanceProfiles {
 			profileReports.addTestResults(*profile, testResult)
 		}
+
+		// add failure output to report
+		failureHookReports := make([]confv1.FailureHookReport, 0)
+		for hookName, hookReport := range testResult.failureHookReport {
+			failureHookReports = append(failureHookReports, confv1.FailureHookReport{Name: hookName, Output: string(hookReport)})
+		}
+		out := confv1.FailureHookReports{Name: tN, Reports: failureHookReports}
+		reports = append(reports, out)
 	}
 
 	profileReports.compileResults(suite.extendedSupportedFeatures, suite.extendedUnsupportedFeatures)
@@ -473,12 +485,13 @@ func (suite *ConformanceTestSuite) Report() (*confv1.ConformanceReport, error) {
 			APIVersion: "gateway.networking.k8s.io/v1alpha1",
 			Kind:       "ConformanceReport",
 		},
-		Date:              time.Now().Format(time.RFC3339),
-		Mode:              suite.mode,
-		Implementation:    suite.implementation,
-		GatewayAPIVersion: suite.apiVersion,
-		GatewayAPIChannel: suite.apiChannel,
-		ProfileReports:    profileReports.list(),
+		Date:               time.Now().Format(time.RFC3339),
+		Mode:               suite.mode,
+		Implementation:     suite.implementation,
+		GatewayAPIVersion:  suite.apiVersion,
+		GatewayAPIChannel:  suite.apiChannel,
+		ProfileReports:     profileReports.list(),
+		FailureHookReports: reports,
 	}, nil
 }
 

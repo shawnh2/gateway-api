@@ -46,6 +46,19 @@ type ConformanceReport struct {
 	// ProfileReports is a list of the individual reports for each conformance
 	// profile that was enabled for a test run.
 	ProfileReports []ProfileReport `json:"profiles"`
+
+	FailureHookReports []FailureHookReports `json:"failureHookReports"`
+}
+
+type FailureHookReports struct {
+	Name    string // test name
+	Reports []FailureHookReport
+}
+
+// FailureHookReport for per test name
+type FailureHookReport struct {
+	Name   string // for hook
+	Output string
 }
 
 // Implementation provides metadata information on the downstream
