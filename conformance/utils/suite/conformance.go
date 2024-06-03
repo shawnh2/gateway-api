@@ -40,7 +40,7 @@ type ConformanceTest struct {
 
 // Run runs an individual tests, applying and cleaning up the required manifests
 // before calling the Test function.
-func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) string {
+func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) FailureHookResult {
 	if test.Parallel {
 		t.Parallel()
 	}
@@ -68,7 +68,7 @@ func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) stri
 
 	test.Test(t, suite)
 
-	var out string
+	out := make(FailureHookResult)
 	for _, hook := range suite.FailureHooks {
 		tlog.Logf(t, "Executing failure hook: %s", hook.Name)
 
@@ -78,7 +78,7 @@ func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) stri
 			tlog.Errorf(t, "Error while executing failure hook: %s", hook.Name)
 		}
 
-		out = out + "\n" + string(ret)
+		out[hook.Name] = ret
 	}
 
 	return out
