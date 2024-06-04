@@ -17,6 +17,7 @@ limitations under the License.
 package suite
 
 import (
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -39,7 +40,7 @@ type ConformanceTest struct {
 
 // Run runs an individual tests, applying and cleaning up the required manifests
 // before calling the Test function.
-func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) {
+func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) FailureHookResult {
 	if test.Parallel {
 		t.Parallel()
 	}
@@ -66,6 +67,21 @@ func (test *ConformanceTest) Run(t *testing.T, suite *ConformanceTestSuite) {
 	}
 
 	test.Test(t, suite)
+
+	out := make(FailureHookResult)
+	for _, hook := range suite.FailureHooks {
+		tlog.Logf(t, "Executing failure hook: %s", hook.Name)
+
+		cmd := exec.Command(hook.Path, hook.Args...)
+		ret, err := cmd.Output()
+		if err != nil {
+			tlog.Errorf(t, "Error while executing failure hook: %s", hook.Name)
+		}
+
+		out[hook.Name] = ret
+	}
+
+	return out
 }
 
 // ParseSupportedFeatures parses flag arguments and converts the string to
